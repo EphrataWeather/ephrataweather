@@ -1,0 +1,288 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRRR Model Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+        #controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: #2c2c2c;
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            max-width: 280px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.3s ease;
+        }
+        #controls:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.6); }
+        #timeDisplay { 
+            font-weight: 500; 
+            margin-bottom: 12px; 
+            color: #ffffff; 
+            background: #3a3a3a; 
+            padding: 5px 10px; 
+            border-radius: 6px; 
+            text-align: center;
+        }
+        .form-label { 
+            color: #e0e0e0; 
+            font-size: 0.9rem; 
+            margin-bottom: 5px; 
+        }
+        .form-select, .form-range {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 6px;
+            transition: border-color 0.2s ease;
+        }
+        .form-select:focus, .form-range:focus {
+            border-color: #0d6efd;
+            outline: none;
+            box-shadow: 0 0 5px rgba(13, 110, 253, 0.5);
+        }
+        .form-check-label { color: #e0e0e0; font-size: 0.85rem; }
+        .form-check-input { 
+            background-color: #3a3a3a; 
+            border: 1px solid #555; 
+        }
+        .form-check-input:checked { background-color: #0d6efd; }
+        .btn-primary {
+            background-color: #0d6efd;
+            border: none;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0a58ca;
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="controls" class="container">
+        <div class="mb-3">
+            <label for="runTime" class="form-label">Model Run</label>
+            <select id="runTime" class="form-select form-select-sm"></select>
+        </div>
+        <div class="mb-3">
+            <label for="forecastSlider" class="form-label">Forecast Offset</label>
+            <input type="range" id="forecastSlider" class="form-range" min="0" max="1080" step="15" value="0">
+            <div id="timeDisplay">+00:00</div>
+        </div>
+        <div class="form-check">
+            <input type="radio" id="showRefl" name="layer" class="form-check-input" checked>
+            <label for="showRefl" class="form-check-label">Reflectivity (REFD)</label>
+        </div>
+        <div class="form-check">
+            <input type="radio" id="showPtype" name="layer" class="form-check-input">
+            <label for="showPtype" class="form-check-label">Precip Type (REFP)</label>
+        </div>
+        <button id="playBtn" class="btn btn-primary btn-sm mt-2">Play</button>
+    </div>
+
+    <script>
+        // Initialize map centered on the continental US
+        var map = L.map('map').setView([39.8283, -98.5795], 4);
+
+        // Add base map layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Data: IEM HRRR'
+        }).addTo(map);
+
+        var reflLayer, ptypeLayer;
+        var animInterval = null;
+        var animSpeed = 500; // ms per frame
+
+        // Function to format minutes to HH:MM
+        function formatTime(min) {
+            var hours = Math.floor(min / 60).toString().padStart(2, '0');
+            var mins = (min % 60).toString().padStart(2, '0');
+            return `+${hours}:${mins}`;
+        }
+
+        // Function to update overlay layers and time display
+        function updateLayers() {
+            var timestamp = document.getElementById('runTime').value;
+            var fmin = document.getElementById('forecastSlider').value.toString().padStart(4, '0');
+            document.getElementById('timeDisplay').textContent = formatTime(parseInt(fmin));
+
+            var reflUrl = `https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${fmin}-${timestamp}/{z}/{x}/{y}.png`;
+            var ptypeUrl = `https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFP-F${fmin}-${timestamp}/{z}/{x}/{y}.png`;
+
+            // Remove existing layers if they exist
+            if (reflLayer) map.removeLayer(reflLayer);
+            if (ptypeLayer) map.removeLayer(ptypeLayer);
+
+            // Add selected layer (only one can be active due to radio buttons)
+            if (document.getElementById('showRefl').checked) {
+                reflLayer = L.tileLayer(reflUrl, { opacity: 0.7 }).addTo(map);
+            } else if (document.getElementById('showPtype').checked) {
+                ptypeLayer = L.tileLayer(ptypeUrl, { opacity: 0.7 }).addTo(map);
+            }
+        }
+
+        // Animation functions
+        function startAnimation() {
+            if (animInterval) return;
+            var slider = document.getElementById('forecastSlider');
+            animInterval = setInterval(() => {
+                var val = parseInt(slider.value);
+                val = (val + 15) % (1080 + 15); // Loop back to 0 after 1080
+                if (val > 1080) val = 0;
+                slider.value = val;
+                updateLayers();
+            }, animSpeed);
+            document.getElementById('playBtn').textContent = 'Pause';
+        }
+
+        function stopAnimation() {
+            if (animInterval) {
+                clearInterval(animInterval);
+                animInterval = null;
+            }
+            document.getElementById('playBtn').textContent = 'Play';
+        }
+
+        // Arrow key controls for frame navigation
+        document.addEventListener('keydown', (e) => {
+            var slider = document.getElementById('forecastSlider');
+            var val = parseInt(slider.value);
+            if (e.key === 'ArrowLeft') {
+                val = Math.max(0, val - 15); // Previous frame
+                slider.value = val;
+                updateLayers();
+                stopAnimation(); // Stop animation on manual navigation
+            } else if (e.key === 'ArrowRight') {
+                val = Math.min(1080, val + 15); // Next frame
+                slider.value = val;
+                updateLayers();
+                stopAnimation(); // Stop animation on manual navigation
+            }
+        });
+
+        // Add event listeners for changes
+        document.getElementById('runTime').addEventListener('change', updateLayers);
+        document.getElementById('forecastSlider').addEventListener('input', updateLayers);
+        document.getElementById('showRefl').addEventListener('change', updateLayers);
+        document.getElementById('showPtype').addEventListener('change', updateLayers);
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (animInterval) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        });
+
+        // Function to check if a model run is available
+        async function checkRunAvailability(timestamp) {
+            var testUrl = `https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F0000-${timestamp}/0/0/0.png`;
+            try {
+                const response = await fetch(testUrl, { method: 'HEAD' });
+                return response.ok; // Returns true if the tile exists (status 200)
+            } catch {
+                return false;
+            }
+        }
+
+        // Generate options for the last 7 model runs, only including available ones
+        (async () => {
+            var now = new Date();
+            var utcNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000); // Convert to UTC
+            var runPromises = [];
+            var runTimes = [];
+
+            // Generate timestamps for the last 7 runs
+            for (var i = 0; i < 7; i++) {
+                var run = new Date(utcNow);
+                run.setMinutes(0, 0, 0);
+                run.setHours(run.getHours() - i);
+                var yyyy = run.getFullYear();
+                var mm = (run.getMonth() + 1).toString().padStart(2, '0');
+                var dd = run.getDate().toString().padStart(2, '0');
+                var hh = run.getHours().toString().padStart(2, '0');
+                var timestamp = `${yyyy}${mm}${dd}${hh}00`;
+                runTimes.push({ timestamp, text: `${yyyy}-${mm}-${dd} ${hh}:00 UTC` });
+                runPromises.push(checkRunAvailability(timestamp));
+            }
+
+            // Wait for availability checks
+            const results = await Promise.all(runPromises);
+
+            // Populate dropdown with available runs
+            runTimes.forEach(({ timestamp, text }, index) => {
+                if (results[index]) { // Only add if the run is available
+                    var option = document.createElement('option');
+                    option.value = timestamp;
+                    option.text = text;
+                    document.getElementById('runTime').appendChild(option);
+                }
+            });
+
+            // Select the latest available run, if any
+            if (document.getElementById('runTime').options.length > 0) {
+                document.getElementById('runTime').value = document.getElementById('runTime').options[0].value;
+                updateLayers();
+            } else {
+                document.getElementById('timeDisplay').textContent = 'No available runs';
+            }
+        })();
+    </script>
+</body>
+</html>

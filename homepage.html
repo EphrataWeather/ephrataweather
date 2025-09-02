@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ephrata Weather Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .section-container {
+            background-color: #1e293b;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        #radar-section #map {
+            min-height: 50vh;
+        }
+        #alerts-section .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center py-8 sm:py-12">
+            <h1 class="text-4xl sm:text-5xl font-bold text-white">Ephrata Weather Hub</h1>
+            <p class="text-xl sm:text-2xl mt-2 text-slate-400">Your one-stop source for local weather.</p>
+        </header>
+
+        <section id="current-conditions-section" class="section-container">
+            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-6 text-center">Current Conditions</h2>
+            <div id="weather-dashboard" class="w-full">
+                <div id="loading-conditions" class="text-center text-xl font-medium">Loading weather data...</div>
+                <div id="weather-data-container" class="hidden">
+                    <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
+                        <div class="bg-blue-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="temperature">-</div>
+                            <div class="text-sm md:text-base font-semibold text-gray-400">Temperature</div>
+                        </div>
+                        <div class="bg-purple-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="feels-like">-</div>
+                            <div class="text-sm md:text-base font-semibold text-gray-400">Feels Like</div>
+                        </div>
+                        <div class="bg-green-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div class="text-3xl md:text-4xl font-bold" id="humidity">-</div>
+                            <div class="text-sm md:text-base font-semibold text-gray-400">Humidity</div>
+                        </div>
+                        <div class="bg-yellow-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div class="text-xl md:text-2xl font-bold" id="wind-speed">-</div>
+                            <div class="text-base md:text-lg font-semibold" id="wind-direction">-</div>
+                            <div class="text-sm md:text-base text-gray-400">Wind</div>
+                        </div>
+                        <div class="bg-teal-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div class="text-xl md:text-2xl font-bold" id="rainfall-total">-</div>
+                            <div class="text-sm md:text-base font-semibold text-gray-400">Rainfall (last 24h)</div>
+                        </div>
+                        <div class="bg-red-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                            <div class="text-xl md:text-2xl font-bold" id="pressure">-</div>
+                            <div class="text-sm md:text-base font-semibold text-gray-400">Sea Level Pressure</div>
+                        </div>
+                    </main>
+                    <footer class="text-center text-xs text-gray-500 mt-6">
+                        <p>Data provided by WeatherFlow Tempest Station ID: 168579</p>
+                    </footer>
+                </div>
+            </div>
+        </section>
+
+        <section id="radar-section" class="section-container">
+            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-6 text-center">National Composite Radar</h2>
+            <div id="map" class="rounded-xl shadow-md overflow-hidden"></div>
+            <div class="control-panel mt-6">
+                <div class="controls-row flex items-center gap-4">
+                    <button id="play" class="bg-cyan-500 text-slate-900 font-bold py-3 px-6 rounded-full shadow-lg transition transform hover:scale-105">▶ Play</button>
+                    <div class="flex-grow flex flex-col gap-1">
+                        <input id="frame" type="range" min="0" max="0" value="0" step="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        <span id="timestamp" class="text-sm text-slate-400 text-right">Loading...</span>
+                    </div>
+                </div>
+                <div class="controls-row flex items-center gap-4 mt-4">
+                    <label for="opacity" class="text-sm font-medium text-slate-400">Opacity</label>
+                    <input id="opacity" type="range" min="0" max="1" value="0.8" step="0.05" class="flex-grow h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="color-scale flex justify-center gap-2 mt-4">
+                    <div class="w-6 h-6 rounded-md bg-[#00ffff]" title="Light Rain"></div>
+                    <div class="w-6 h-6 rounded-md bg-[#0000ff]" title="Moderate Rain"></div>
+                    <div class="w-6 h-6 rounded-md bg-[#00ff00]" title="Heavy Rain"></div>
+                    <div class="w-6 h-6 rounded-md bg-[#ffff00]" title="Very Heavy Rain"></div>
+                    <div class="w-6 h-6 rounded-md bg-[#ff0000]" title="Intense Rain"></div>
+                    <div class="w-6 h-6 rounded-md bg-[#ff00ff]" title="Extreme Rain/Hail"></div>
+                </div>
+                <div class="legend text-xs text-slate-500 text-center mt-4">
+                    Tiles: <a href="https://www.rainviewer.com/api.html" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">RainViewer</a> · Map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">OSM</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="alerts-section" class="section-container">
+            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-6 text-center">Weather Alerts</h2>
+            <div id="loading-alerts" class="text-center p-8">
+                <div class="animate-pulse text-slate-400">
+                    <svg class="w-16 h-16 mx-auto text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 4m0 5c-.5 1.5-1 3-1.5 4.5"/></svg>
+                    <p class="mt-4 text-xl">Checking for alerts...</p>
+                </div>
+            </div>
+            <div id="alerts-container" class="hidden space-y-6">
+                </div>
+        </section>
+
+        <footer class="text-center text-slate-500 text-sm mt-8 pb-4">
+            <p>&copy; 2025 Ephrata Weather Hub. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // --- Current Conditions Script (from currentconditions.html) ---
+        const API_TOKEN = "7924050f-deed-4373-9755-fb0c8c8668b9";
+        const STATION_ID = "168579";
+        const API_URL = `https://swd.weatherflow.com/swd/rest/observations/station/${STATION_ID}?token=${API_TOKEN}`;
+
+        const temperatureElement = document.getElementById('temperature');
+        const feelsLikeElement = document.getElementById('feels-like');
+        const humidityElement = document.getElementById('humidity');
+        const windSpeedElement = document.getElementById('wind-speed');
+        const windDirectionElement = document.getElementById('wind-direction');
+        const rainfallElement = document.getElementById('rainfall-total');
+        const pressureElement = document.getElementById('pressure');
+        const loadingConditionsElement = document.getElementById('loading-conditions');
+        const weatherDataContainer = document.getElementById('weather-data-container');
+
+        function cToF(celsius) { return (celsius * 9 / 5) + 32; }
+        function msToMph(ms) { return ms * 2.23694; }
+        function getCardinalDirection(angle) {
+            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const index = Math.round(angle / 22.5) % 16;
+            return directions[index];
+        }
+
+        async function fetchWeatherData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const latestObservation = data.obs[0];
+                if (!latestObservation) throw new Error('No observation data available.');
+
+                const temperatureC = latestObservation.air_temperature;
+                const feelsLikeC = latestObservation.feels_like;
+                const humidity = latestObservation.relative_humidity;
+                const windSpeedMs = latestObservation.wind_avg;
+                const windDirection = latestObservation.wind_direction;
+                const precipValue = latestObservation.precip_accum_last_24h;
+                const seaLevelPressurehPa = latestObservation.sea_level_pressure;
+
+                const temperatureF = cToF(temperatureC).toFixed(1);
+                const feelsLikeF = cToF(feelsLikeC).toFixed(1);
+                const windSpeedMph = msToMph(windSpeedMs).toFixed(1);
+                const cardinalDirection = getCardinalDirection(windDirection);
+                const precipAccum24h = (precipValue === null || isNaN(precipValue)) ? 0 : precipValue;
+                const rainfallInches = (precipAccum24h * 0.0393701).toFixed(2);
+                
+                temperatureElement.textContent = `${temperatureF}°F`;
+                feelsLikeElement.textContent = `${feelsLikeF}°F`;
+                humidityElement.textContent = `${humidity}%`;
+                windSpeedElement.textContent = `${windSpeedMph} mph`;
+                windDirectionElement.textContent = `${cardinalDirection}`;
+                rainfallElement.textContent = `${rainfallInches} in`;
+                pressureElement.textContent = `${seaLevelPressurehPa} hPa`;
+            } catch (error) {
+                console.error("Failed to fetch weather data:", error);
+                weatherDataContainer.innerHTML = `<div class="text-center p-4 text-red-500"><p>Failed to load weather data.</p></div>`;
+            } finally {
+                loadingConditionsElement.classList.add('hidden');
+                weatherDataContainer.classList.remove('hidden');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', fetchWeatherData);
+        setInterval(fetchWeatherData, 300000);
+
+        // --- National Composite Radar Script (from national_composite_radar_viewer.html) ---
+        const map = L.map('map', { zoomControl: true, minZoom: 2, worldCopyJump: true });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+        map.setView([40.1797, -76.1786], 9);
+        const radarLayer = L.tileLayer('', { opacity: 0.8, attribution: 'Radar tiles © RainViewer' }).addTo(map);
+
+        const playBtn = document.getElementById('play');
+        const frameSlider = document.getElementById('frame');
+        const tsEl = document.getElementById('timestamp');
+        const opacitySlider = document.getElementById('opacity');
+
+        let frames = [];
+        let host = 'https://tilecache.rainviewer.com';
+        let idx = 0;
+        let timer = null;
+
+        function fmtUTC(epoch) {
+            const d = new Date(epoch * 1000);
+            return d.toLocaleString(undefined, { hour12: true, year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        }
+        function radarUrl(frame) { return `${host}/v2/radar/${frame.path}/256/{z}/{x}/{y}/2/1_1.png`; }
+        function updateFrame(newIndex) {
+            if (!frames.length) return;
+            idx = (newIndex + frames.length) % frames.length;
+            const f = frames[idx];
+            radarLayer.setUrl(radarUrl(f));
+            frameSlider.value = idx;
+            tsEl.textContent = `Valid: ${fmtUTC(f.time)}`;
+        }
+        function setPlaying(yes) {
+            if (yes) {
+                playBtn.textContent = '⏸ Pause';
+                if (timer) clearInterval(timer);
+                timer = setInterval(() => updateFrame(idx + 1), 650);
+            } else {
+                playBtn.textContent = '▶ Play';
+                if (timer) { clearInterval(timer); timer = null; }
+            }
+        }
+        playBtn.addEventListener('click', () => setPlaying(!timer));
+        frameSlider.addEventListener('input', (e) => { setPlaying(false); updateFrame(parseInt(e.target.value, 10)); });
+        opacitySlider.addEventListener('input', (e) => radarLayer.setOpacity(parseFloat(e.target.value)));
+
+        async function loadFrames() {
+            tsEl.textContent = 'Loading frames…';
+            try {
+                const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+                const json = await resp.json();
+                host = json.host || host;
+                const past = (json.radar && Array.isArray(json.radar.past)) ? json.radar.past : [];
+                if (!past.length) throw new Error('No radar frames available.');
+                frames = past.slice(-10);
+                frameSlider.max = String(frames.length - 1);
+                frameSlider.value = String(frames.length - 1);
+                updateFrame(frames.length - 1);
+                setPlaying(false);
+            } catch (err) {
+                console.error(err);
+                tsEl.textContent = 'Failed to load radar frames';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadFrames);
+
+        // --- Weather Alerts Script (from ephrataalertschecker.html) ---
+        const NWS_API_URL = "https://api.weather.gov";
+        const ZONE_ID = "PAZ066";
+        const alertsContainer = document.getElementById('alerts-container');
+        const loadingAlertsElement = document.getElementById('loading-alerts');
+
+        function getSeverityIcon(severity) {
+            switch(severity.toLowerCase()) {
+                case 'minor': return `<svg class="w-6 h-6 flex-shrink-0 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+                case 'moderate': return `<svg class="w-6 h-6 flex-shrink-0 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
+                case 'severe': case 'extreme': return `<svg class="w-6 h-6 flex-shrink-0 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                default: return `<svg class="w-6 h-6 flex-shrink-0 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            }
+        }
+        function getSeverityColor(severity) {
+            switch(severity.toLowerCase()) {
+                case 'minor': return 'bg-yellow-950 border-yellow-700 text-yellow-200';
+                case 'moderate': return 'bg-orange-950 border-orange-700 text-orange-200';
+                case 'severe': return 'bg-red-950 border-red-700 text-red-200';
+                case 'extreme': return 'bg-red-700 border-red-800 text-white';
+                default: return 'bg-blue-950 border-blue-700 text-blue-200';
+            }
+        }
+        async function fetchWeatherAlerts() {
+            loadingAlertsElement.classList.remove('hidden');
+            alertsContainer.classList.add('hidden');
+            alertsContainer.innerHTML = '';
+            try {
+                const response = await fetch(`${NWS_API_URL}/alerts/active?zone=${ZONE_ID}`, { headers: { 'User-Agent': 'EphrataWeatherHub, (myemail@example.com)' } });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                if (data.features.length === 0) {
+                    alertsContainer.innerHTML = `<div class="text-center p-8 bg-slate-800 rounded-2xl shadow-lg border border-slate-700 fade-in"><p class="text-lg font-medium text-slate-400">No active weather alerts for Ephrata, PA.</p></div>`;
+                } else {
+                    data.features.forEach(alert => {
+                        const props = alert.properties;
+                        const severityClass = getSeverityColor(props.severity);
+                        const severityIcon = getSeverityIcon(props.severity);
+                        const alertCard = `<div class="flex items-start gap-4 p-5 rounded-2xl shadow-lg border ${severityClass} fade-in">
+                                <div class="flex-shrink-0 mt-1">${severityIcon}</div>
+                                <div><h3 class="text-lg font-bold">${props.event}</h3>
+                                    <p class="text-sm font-semibold opacity-75 mt-1">Severity: ${props.severity}</p>
+                                    <p class="text-sm mt-2">${props.headline}</p>
+                                    <a href="${props.url}" target="_blank" class="mt-3 inline-block font-semibold hover:underline text-sm text-cyan-400">Read more</a>
+                                </div>
+                            </div>`;
+                        alertsContainer.innerHTML += alertCard;
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch weather alerts:", error);
+                alertsContainer.innerHTML = `<div class="text-center p-8 bg-slate-800 rounded-2xl shadow-lg border border-slate-700 fade-in"><h3 class="text-xl font-bold text-red-500">Error</h3><p class="mt-2 text-slate-400">Failed to load weather alerts.</p></div>`;
+            } finally {
+                loadingAlertsElement.classList.add('hidden');
+                alertsContainer.classList.remove('hidden');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', fetchWeatherAlerts);
+        setInterval(fetchWeatherAlerts, 300000);
+    </script>
+</body>
+</html>

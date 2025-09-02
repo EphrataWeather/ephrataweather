@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ephrata, PA Weather Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 md:p-8 min-h-screen flex items-center justify-center">
+
+    <div id="loading" class="loading">
+        <div class="text-xl font-medium">Loading weather data...</div>
+    </div>
+
+    <div id="weather-dashboard" class="hidden w-full max-w-4xl p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl space-y-6 md:space-y-8">
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Ephrata, PA</h1>
+            <h2 class="text-xl md:text-2xl font-medium mt-1 md:mt-2 text-gray-600 dark:text-gray-400">Current Weather Conditions</h2>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
+            <!-- Temperature -->
+            <div class="bg-blue-50 dark:bg-blue-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="temperature">-</div>
+                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Temperature</div>
+            </div>
+
+            <!-- Feels Like -->
+            <div class="bg-purple-50 dark:bg-purple-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="feels-like">-</div>
+                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Feels Like</div>
+            </div>
+
+            <!-- Humidity -->
+            <div class="bg-green-50 dark:bg-green-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                <div class="text-3xl md:text-4xl font-bold" id="humidity">-</div>
+                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Humidity</div>
+            </div>
+
+            <!-- Wind -->
+            <div class="bg-yellow-50 dark:bg-yellow-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                <div class="text-xl md:text-2xl font-bold" id="wind-speed">-</div>
+                <div class="text-base md:text-lg font-semibold" id="wind-direction">-</div>
+                <div class="text-sm md:text-base text-gray-600 dark:text-gray-400">Wind</div>
+            </div>
+
+            <!-- Rainfall Total -->
+            <div class="bg-teal-50 dark:bg-teal-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                <div class="text-xl md:text-2xl font-bold" id="rainfall-total">-</div>
+                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Rainfall (last 24h)</div>
+            </div>
+
+            <!-- Sea Level Pressure -->
+            <div class="bg-red-50 dark:bg-red-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
+                <div class="text-xl md:text-2xl font-bold" id="pressure">-</div>
+                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Sea Level Pressure</div>
+            </div>
+        </main>
+        
+        <footer class="text-center text-xs text-gray-500 dark:text-gray-500 mt-6">
+            <p>Data provided by WeatherFlow Tempest Station ID: 168579</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_TOKEN = "7924050f-deed-4373-9755-fb0c8c8668b9";
+        const STATION_ID = "168579";
+        const API_URL = `https://swd.weatherflow.com/swd/rest/observations/station/${STATION_ID}?token=${API_TOKEN}`;
+
+        const temperatureElement = document.getElementById('temperature');
+        const feelsLikeElement = document.getElementById('feels-like');
+        const humidityElement = document.getElementById('humidity');
+        const windSpeedElement = document.getElementById('wind-speed');
+        const windDirectionElement = document.getElementById('wind-direction');
+        const rainfallElement = document.getElementById('rainfall-total');
+        const pressureElement = document.getElementById('pressure');
+        const loadingElement = document.getElementById('loading');
+        const dashboardElement = document.getElementById('weather-dashboard');
+
+        // Function to convert Celsius to Fahrenheit
+        function cToF(celsius) {
+            return (celsius * 9/5) + 32;
+        }
+
+        // Function to convert m/s to mph
+        function msToMph(ms) {
+            return ms * 2.23694;
+        }
+
+        // Function to convert wind direction degrees to cardinal direction
+        function getCardinalDirection(angle) {
+            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const index = Math.round(angle / 22.5) % 16;
+            return directions[index];
+        }
+
+        async function fetchWeatherData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Get the latest observation from the array
+                const latestObservation = data.obs[0];
+
+                if (!latestObservation) {
+                    throw new Error('No observation data available.');
+                }
+
+                // Extract data fields
+                const temperatureC = latestObservation.air_temperature;
+                const feelsLikeC = latestObservation.feels_like;
+                const humidity = latestObservation.relative_humidity;
+                const windSpeedMs = latestObservation.wind_avg;
+                const windDirection = latestObservation.wind_direction;
+                const precipValue = latestObservation.precip_accum_last_24h;
+                const seaLevelPressurehPa = latestObservation.sea_level_pressure;
+
+                // Perform conversions and data formatting
+                const temperatureF = cToF(temperatureC).toFixed(1);
+                const feelsLikeF = cToF(feelsLikeC).toFixed(1);
+                const windSpeedMph = msToMph(windSpeedMs).toFixed(1);
+                const cardinalDirection = getCardinalDirection(windDirection);
+                const precipAccum24h = (precipValue === null || isNaN(precipValue)) ? 0 : precipValue;
+                const rainfallInches = (precipAccum24h * 0.0393701).toFixed(2);
+                
+                // Update the dashboard with the new values
+                temperatureElement.textContent = `${temperatureF}°F`;
+                feelsLikeElement.textContent = `${feelsLikeF}°F`;
+                humidityElement.textContent = `${humidity}%`;
+                windSpeedElement.textContent = `${windSpeedMph} mph`;
+                windDirectionElement.textContent = `${cardinalDirection}`;
+                rainfallElement.textContent = `${rainfallInches} in`;
+                pressureElement.textContent = `${seaLevelPressurehPa} hPa`;
+
+            } catch (error) {
+                console.error("Failed to fetch weather data:", error);
+                // Display error message on the dashboard
+                dashboardElement.innerHTML = `
+                    <div class="text-center p-8 text-red-500">
+                        <h3 class="text-2xl font-bold">Error</h3>
+                        <p class="mt-2">Failed to load weather data. Please check the API token or station ID.</p>
+                        <p class="mt-1 text-sm">Details: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                loadingElement.classList.add('hidden');
+                dashboardElement.classList.remove('hidden');
+            }
+        }
+
+        // Fetch the data as soon as the page loads
+        document.addEventListener('DOMContentLoaded', fetchWeatherData);
+        // Refresh the data every 5 minutes (300000 ms)
+        setInterval(fetchWeatherData, 300000);
+    </script>
+</body>
+</html>
