@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPC Outlook Viewer</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin: 40px 0;
+            font-size: 2.5rem;
+        }
+        .day-section {
+            margin-bottom: 40px;
+        }
+        .day-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+        }
+        .outlook-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .outlook-item {
+            background-color: #1e293b;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .outlook-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        .outlook-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            transition: transform 0.3s;
+        }
+        .outlook-item p {
+            margin: 10px 0 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        /* Fullscreen overlay */
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: zoom-out;
+        }
+        .fullscreen-overlay img {
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .day-section h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SPC Outlook Viewer (Days 1-3)</h1>
+
+        <div class="day-section">
+            <h2>Day 1 Outlook</h2>
+            <div class="outlook-grid">
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day1otlk.gif" alt="Day 1 Categorical Outlook">
+                    <p>Categorical Outlook</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day1probotlk_torn.gif" alt="Day 1 Tornado Probability">
+                    <p>Tornado Probability</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day1probotlk_wind.gif" alt="Day 1 Wind Probability">
+                    <p>Wind Probability</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day1probotlk_hail.gif" alt="Day 1 Hail Probability">
+                    <p>Hail Probability</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="day-section">
+            <h2>Day 2 Outlook</h2>
+            <div class="outlook-grid">
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day2otlk.gif" alt="Day 2 Categorical Outlook">
+                    <p>Categorical Outlook</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day2probotlk_torn.gif" alt="Day 2 Tornado Probability">
+                    <p>Tornado Probability</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day2probotlk_wind.gif" alt="Day 2 Wind Probability">
+                    <p>Wind Probability</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day2probotlk_hail.gif" alt="Day 2 Hail Probability">
+                    <p>Hail Probability</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="day-section">
+            <h2>Day 3 Outlook</h2>
+            <div class="outlook-grid">
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day3otlk.gif" alt="Day 3 Categorical Outlook">
+                    <p>Categorical Outlook</p>
+                </div>
+                <div class="outlook-item">
+                    <img src="https://www.spc.noaa.gov/products/outlook/day3prob.gif" alt="Day 3 Probabilistic Outlook">
+                    <p>Probabilistic Outlook</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen overlay container -->
+    <div class="fullscreen-overlay" style="display:none;" id="fullscreenOverlay">
+        <img src="" alt="Fullscreen Outlook" id="fullscreenImage">
+    </div>
+
+    <script>
+        const outlookItems = document.querySelectorAll('.outlook-item img');
+        const overlay = document.getElementById('fullscreenOverlay');
+        const overlayImg = document.getElementById('fullscreenImage');
+
+        outlookItems.forEach(img => {
+            img.addEventListener('click', () => {
+                overlayImg.src = img.src;
+                overlay.style.display = 'flex';
+            });
+        });
+
+        overlay.addEventListener('click', () => {
+            overlay.style.display = 'none';
+            overlayImg.src = '';
+        });
+    </script>
+</body>
+</html>
