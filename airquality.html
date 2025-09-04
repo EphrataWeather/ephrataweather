@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ephrata, PA Air Quality Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+        .status-good { background-color: #10b981; }
+        .status-moderate { background-color: #f59e0b; }
+        .status-unhealthy { background-color: #ef4444; }
+        .status-very-unhealthy { background-color: #dc2626; }
+        .status-hazardous { background-color: #991b1b; }
+        .status-unknown { background-color: #6b7280; }
+        .status-box {
+            color: white;
+            padding: 8px 16px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        .loading {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #6b7280;
+            border-radius: 50%;
+            width: 3rem;
+            height: 3rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] p-4">
+
+    <div class="max-w-4xl mx-auto py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-200 tracking-tight mb-2">
+                <span class="text-gray-400">Ephrata, PA</span> Air Quality
+            </h1>
+            <p class="text-gray-400 text-lg md:text-xl">Live data from weatherapi.com</p>
+        </header>
+
+        <main id="dashboard" class="space-y-8">
+            <!-- Loading and Error States -->
+            <div id="loading" class="flex justify-center items-center py-16">
+                <div class="loading"></div>
+            </div>
+            <div id="error-message" class="hidden text-center text-red-300 font-medium p-4 rounded-lg bg-red-800">
+                Failed to load air quality data. Please try again later.
+            </div>
+
+            <!-- Main AQI Card -->
+            <div id="aqi-card" class="card rounded-2xl p-6 md:p-8 space-y-4 hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-200">US - EPA Air Quality Index</h2>
+                        <p id="local-time" class="text-gray-400 text-sm"></p>
+                    </div>
+                    <div class="flex items-center">
+                        <span id="aqi-value" class="text-5xl font-bold text-white mr-4"></span>
+                        <div id="aqi-status" class="status-box"></div>
+                    </div>
+                </div>
+                <p id="aqi-message" class="text-gray-300 text-base"></p>
+            </div>
+
+            <!-- Pollutants Grid -->
+            <div id="pollutants-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+                <!-- Pollutant Cards will be dynamically added here -->
+            </div>
+        </main>
+    </div>
+
+    <footer class="text-center py-8 text-gray-400 text-sm">
+        <p>Data provided by <a href="https://www.weatherapi.com/" class="underline text-gray-200 hover:text-white" target="_blank">WeatherAPI.com</a></p>
+    </footer>
+
+    <script>
+        // WeatherAPI.com API key provided by the user
+        const apiKey = '14459343c6c14810b57194048250209';
+        // The location for the air quality dashboard
+        const dashboardLocation = 'Ephrata, PA';
+        // Construct the API URL to fetch current weather and air quality data
+        const apiUrl = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${encodeURIComponent(dashboardLocation)}&aqi=yes`;
+
+        // Get DOM elements for manipulation
+        const dashboard = document.getElementById('dashboard');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('error-message');
+        const aqiCard = document.getElementById('aqi-card');
+        const pollutantsGrid = document.getElementById('pollutants-grid');
+
+        // Define a mapping for pollutant data and descriptions
+        const pollutantData = {
+            'co': { name: 'Carbon Monoxide', unit: 'μg/m³', desc: 'A colorless, odorless gas that can be harmful when inhaled in large amounts.' },
+            'o3': { name: 'Ozone', unit: 'μg/m³', desc: 'A major component of smog and can cause respiratory issues.' },
+            'no2': { name: 'Nitrogen Dioxide', unit: 'μg/m³', desc: 'A gas that can contribute to the formation of smog and acid rain.' },
+            'so2': { name: 'Sulfur Dioxide', unit: 'μg/m³', desc: 'A gas that can aggravate respiratory conditions like asthma.' },
+            'pm2_5': { name: 'PM2.5', unit: 'μg/m³', desc: 'Fine particles that are 2.5 micrometers or less in diameter, can be hazardous to health.' },
+            'pm10': { name: 'PM10', unit: 'μg/m³', desc: 'Inhalable particles that are 10 micrometers or less in diameter.' },
+        };
+
+        // Define the US-EPA AQI levels and their corresponding statuses, colors, and messages
+        const aqiLevels = [
+            { aqi: 50, status: 'Good', color: 'status-good', msg: 'Air quality is considered satisfactory, and air pollution poses little or no risk.' },
+            { aqi: 100, status: 'Moderate', color: 'status-moderate', msg: 'Air quality is acceptable; however, for some pollutants there may be a moderate health concern for a very small number of people who are unusually sensitive to air pollution.' },
+            { aqi: 150, status: 'Unhealthy for Sensitive Groups', color: 'status-unhealthy', msg: 'Members of sensitive groups may experience health effects. The general public is not likely to be affected.' },
+            { aqi: 200, status: 'Unhealthy', color: 'status-unhealthy', msg: 'Everyone may begin to experience health effects; members of sensitive groups may experience more serious health effects.' },
+            { aqi: 300, status: 'Very Unhealthy', color: 'status-very-unhealthy', msg: 'Health warnings of emergency conditions. The entire population is more likely to be affected.' },
+            { aqi: Infinity, status: 'Hazardous', color: 'status-hazardous', msg: 'Health alert: everyone may experience more serious health effects.' },
+        ];
+
+        // Function to determine the AQI status based on the AQI value
+        function getAqiStatus(aqi) {
+            for (const level of aqiLevels) {
+                if (aqi <= level.aqi) {
+                    return level;
+                }
+            }
+            return { status: 'Unknown', color: 'status-unknown', msg: 'No data available.' };
+        }
+
+        // Main function to fetch data from the API
+        async function fetchAirQuality() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('API Response:', data); // Log the response for debugging
+
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Fetch error:', error);
+                loading.classList.add('hidden');
+                errorMessage.classList.remove('hidden');
+            }
+        }
+
+        // Function to update the dashboard UI with fetched data
+        function updateDashboard(data) {
+            const apiLocation = data.location;
+            const current = data.current;
+            const aqi = data.current.air_quality['us-epa-index'];
+
+            // Update main AQI card
+            const aqiStatus = getAqiStatus(aqi);
+            document.getElementById('local-time').textContent = `As of ${new Date(apiLocation.localtime).toLocaleString()}`;
+            document.getElementById('aqi-value').textContent = aqi;
+            const statusBox = document.getElementById('aqi-status');
+            statusBox.textContent = aqiStatus.status;
+            statusBox.className = `status-box ${aqiStatus.color}`;
+            document.getElementById('aqi-message').textContent = aqiStatus.msg;
+            aqiCard.classList.remove('hidden');
+
+            // Update pollutants grid
+            pollutantsGrid.innerHTML = ''; // Clear existing cards
+            for (const key in current.air_quality) {
+                if (pollutantData[key]) {
+                    const value = current.air_quality[key];
+                    const { name, unit, desc } = pollutantData[key];
+                    const cardHtml = `
+                        <div class="card rounded-2xl p-6 space-y-2 bg-gray-900 text-white">
+                            <h3 class="text-xl font-semibold text-gray-200">${name}</h3>
+                            <div class="flex items-end justify-between">
+                                <span class="text-4xl font-bold text-white">${value.toFixed(2)}</span>
+                                <span class="text-lg text-gray-400">${unit}</span>
+                            </div>
+                            <p class="text-sm text-gray-300">${desc}</p>
+                        </div>
+                    `;
+                    pollutantsGrid.innerHTML += cardHtml;
+                }
+            }
+            pollutantsGrid.classList.remove('hidden');
+
+            // Hide loading indicator
+            loading.classList.add('hidden');
+        }
+
+        // Initial fetch when the page loads
+        document.addEventListener('DOMContentLoaded', fetchAirQuality);
+    </script>
+</body>
+</html>
