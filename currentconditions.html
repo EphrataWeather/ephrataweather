@@ -56,8 +56,8 @@
     <div id="weather-container" class="w-full max-w-lg">
         <!-- Main Weather Card -->
         <div class="card text-center mb-8">
-            <h1 class="text-3xl font-bold mb-2">Ephrata, PA</h1>
-            <p class="text-xl text-gray-400 mb-6" id="last-updated"></p>
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2">Ephrata, PA</h1>
+            <p class="text-lg sm:text-xl text-gray-400 mb-6" id="last-updated"></p>
             
             <div id="loading" class="text-center py-12">
                 <div class="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-gray-600 mx-auto"></div>
@@ -65,10 +65,11 @@
             </div>
 
             <div id="weather-data" class="hidden">
-                <div class="text-6xl font-extrabold text-blue-400 mb-2" id="temperature">--°F</div>
-                <div class="text-lg text-gray-400 mb-6" id="feels-like">Feels like --°F</div>
+                <div class="text-5xl sm:text-6xl font-extrabold text-blue-400 mb-2" id="temperature">--°F</div>
+                <div class="text-base sm:text-lg text-gray-400 mb-6" id="feels-like">Feels like --°F</div>
                 
-                <div class="grid grid-cols-2 gap-4 text-left">
+                <!-- Data grid stacks on mobile, becomes 2 columns on medium screens -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                     <div class="data-item">
                         <span class="data-label">Wind</span>
                         <span class="data-value" id="wind">-- mph</span>
@@ -91,10 +92,11 @@
 
         <!-- Hourly Forecast Card -->
         <div class="card">
-            <h2 class="text-2xl font-bold mb-4 text-center">Hourly Forecast</h2>
+            <h2 class="text-xl sm:text-2xl font-bold mb-4 text-center">Hourly Forecast</h2>
             <div id="hourly-forecast-container">
                 <p id="forecast-message" class="text-center text-gray-400">Checking for hourly forecast...</p>
-                <div id="forecast-grid" class="mt-4 hidden grid grid-cols-3 gap-2"></div>
+                <!-- Forecast grid is 2 columns on mobile, 3 columns on larger screens -->
+                <div id="forecast-grid" class="mt-4 hidden grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
             </div>
         </div>
 
