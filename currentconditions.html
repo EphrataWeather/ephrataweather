@@ -3,170 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ephrata, PA Weather Dashboard</title>
+    <title>Ephrata, PA Weather</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
         }
-        .loading {
+        .card {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2.5rem;
+        }
+        .data-item {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            height: 100vh;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #334155;
+        }
+        .data-item:last-child {
+            border-bottom: none;
+        }
+        .data-label {
+            font-weight: 600;
+            color: #94a3b8;
+        }
+        .data-value {
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .forecast-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            background-color: #334155;
+            text-align: center;
+        }
+        .weather-icon {
+            font-size: 2.5rem;
+            line-height: 1;
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 md:p-8 min-h-screen flex items-center justify-center">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <div id="loading" class="loading">
-        <div class="text-xl font-medium">Loading weather data...</div>
-    </div>
-
-    <div id="weather-dashboard" class="hidden w-full max-w-4xl p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl space-y-6 md:space-y-8">
-        <header class="text-center">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Ephrata, PA</h1>
-            <h2 class="text-xl md:text-2xl font-medium mt-1 md:mt-2 text-gray-600 dark:text-gray-400">Current Weather Conditions</h2>
-        </header>
-
-        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
-            <!-- Temperature -->
-            <div class="bg-blue-50 dark:bg-blue-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="temperature">-</div>
-                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Temperature</div>
+    <div id="weather-container" class="w-full max-w-lg">
+        <!-- Main Weather Card -->
+        <div class="card text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2">Ephrata, PA</h1>
+            <p class="text-xl text-gray-400 mb-6" id="last-updated"></p>
+            
+            <div id="loading" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-gray-600 mx-auto"></div>
+                <p class="mt-4 text-gray-400">Loading weather data...</p>
             </div>
 
-            <!-- Feels Like -->
-            <div class="bg-purple-50 dark:bg-purple-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="feels-like">-</div>
-                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Feels Like</div>
+            <div id="weather-data" class="hidden">
+                <div class="text-6xl font-extrabold text-blue-400 mb-2" id="temperature">--°F</div>
+                <div class="text-lg text-gray-400 mb-6" id="feels-like">Feels like --°F</div>
+                
+                <div class="grid grid-cols-2 gap-4 text-left">
+                    <div class="data-item">
+                        <span class="data-label">Wind</span>
+                        <span class="data-value" id="wind">-- mph</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Humidity</span>
+                        <span class="data-value" id="humidity">--%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Pressure</span>
+                        <span class="data-value" id="pressure">-- mb</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Dew Point</span>
+                        <span class="data-value" id="dew-point">--°F</span>
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <!-- Humidity -->
-            <div class="bg-green-50 dark:bg-green-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                <div class="text-3xl md:text-4xl font-bold" id="humidity">-</div>
-                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Humidity</div>
+        <!-- Hourly Forecast Card -->
+        <div class="card">
+            <h2 class="text-2xl font-bold mb-4 text-center">Hourly Forecast</h2>
+            <div id="hourly-forecast-container">
+                <p id="forecast-message" class="text-center text-gray-400">Checking for hourly forecast...</p>
+                <div id="forecast-grid" class="mt-4 hidden grid grid-cols-3 gap-2"></div>
             </div>
+        </div>
 
-            <!-- Wind -->
-            <div class="bg-yellow-50 dark:bg-yellow-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                <div class="text-xl md:text-2xl font-bold" id="wind-speed">-</div>
-                <div class="text-base md:text-lg font-semibold" id="wind-direction">-</div>
-                <div class="text-sm md:text-base text-gray-600 dark:text-gray-400">Wind</div>
-            </div>
-
-            <!-- Rainfall Total -->
-            <div class="bg-teal-50 dark:bg-teal-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                <div class="text-xl md:text-2xl font-bold" id="rainfall-total">-</div>
-                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Rainfall (last 24h)</div>
-            </div>
-
-            <!-- Sea Level Pressure -->
-            <div class="bg-red-50 dark:bg-red-900 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                <div class="text-xl md:text-2xl font-bold" id="pressure">-</div>
-                <div class="text-sm md:text-base font-semibold text-gray-600 dark:text-gray-400">Sea Level Pressure</div>
-            </div>
-        </main>
-        
-        <footer class="text-center text-xs text-gray-500 dark:text-gray-500 mt-6">
-            <p>Data provided by WeatherFlow Tempest Station ID: 168579</p>
-        </footer>
     </div>
 
     <script>
-        const API_TOKEN = "7924050f-deed-4373-9755-fb0c8c8668b9";
-        const STATION_ID = "168579";
-        const API_URL = `https://swd.weatherflow.com/swd/rest/observations/station/${STATION_ID}?token=${API_TOKEN}`;
+        document.addEventListener('DOMContentLoaded', () => {
+            const STATION_ID = 168579;
+            const TOKEN = '7924050f-deed-4373-9755-fb0c8c8668b9';
+            const WEATHER_API_URL = `https://swd.weatherflow.com/swd/rest/better_forecast?station_id=${STATION_ID}&token=${TOKEN}`;
 
-        const temperatureElement = document.getElementById('temperature');
-        const feelsLikeElement = document.getElementById('feels-like');
-        const humidityElement = document.getElementById('humidity');
-        const windSpeedElement = document.getElementById('wind-speed');
-        const windDirectionElement = document.getElementById('wind-direction');
-        const rainfallElement = document.getElementById('rainfall-total');
-        const pressureElement = document.getElementById('pressure');
-        const loadingElement = document.getElementById('loading');
-        const dashboardElement = document.getElementById('weather-dashboard');
+            const weatherDataEl = document.getElementById('weather-data');
+            const loadingEl = document.getElementById('loading');
+            const lastUpdatedEl = document.getElementById('last-updated');
+            const temperatureEl = document.getElementById('temperature');
+            const feelsLikeEl = document.getElementById('feels-like');
+            const windEl = document.getElementById('wind');
+            const humidityEl = document.getElementById('humidity');
+            const pressureEl = document.getElementById('pressure');
+            const dewPointEl = document.getElementById('dew-point');
+            const forecastMessageEl = document.getElementById('forecast-message');
+            const forecastGridEl = document.getElementById('forecast-grid');
 
-        // Function to convert Celsius to Fahrenheit
-        function cToF(celsius) {
-            return (celsius * 9/5) + 32;
-        }
+            // Function to calculate dew point in Fahrenheit
+            const calculateDewPoint = (tempC, rh) => {
+                const a = 17.27;
+                const b = 237.7;
+                const tempPart = (a * tempC) / (b + tempC);
+                const dewPointC = (b * (tempPart + Math.log(rh / 100))) / (a - (tempPart + Math.log(rh / 100)));
+                return (dewPointC * 9 / 5) + 32; // Convert to Fahrenheit
+            };
 
-        // Function to convert m/s to mph
-        function msToMph(ms) {
-            return ms * 2.23694;
-        }
+            // Function to format wind direction
+            const getWindDirection = (degrees) => {
+                const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+                const index = Math.round((degrees % 360) / 22.5);
+                return directions[index % 16];
+            };
 
-        // Function to convert wind direction degrees to cardinal direction
-        function getCardinalDirection(angle) {
-            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-            const index = Math.round(angle / 22.5) % 16;
-            return directions[index];
-        }
-
-        async function fetchWeatherData() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+            // Function to get a weather icon based on condition string
+            const getWeatherIcon = (condition) => {
+                condition = condition.toLowerCase();
+                if (condition.includes('thunderstorm')) {
+                    return '⛈️';
+                } else if (condition.includes('rain') || condition.includes('showers')) {
+                    return '🌧️';
+                } else if (condition.includes('cloudy')) {
+                    return '☁️';
+                } else if (condition.includes('clear')) {
+                    return '☀️';
+                } else if (condition.includes('snow')) {
+                    return '❄️';
+                } else if (condition.includes('fog')) {
+                    return '🌫️';
                 }
-                const data = await response.json();
-                
-                // Get the latest observation from the array
-                const latestObservation = data.obs[0];
+                return '❓'; // Default icon for unknown conditions
+            };
 
-                if (!latestObservation) {
-                    throw new Error('No observation data available.');
+            const fetchData = async () => {
+                try {
+                    const response = await fetch(WEATHER_API_URL);
+                    const data = await response.json();
+
+                    if (data.status.status_code !== 0) {
+                        throw new Error(data.status.status_message);
+                    }
+
+                    // Extract and display current conditions
+                    const current = data.current_conditions;
+                    if (current) {
+                        const tempF = (current.air_temperature * 9 / 5) + 32;
+                        const feelsLikeF = (current.feels_like * 9 / 5) + 32;
+                        const windSpeed = current.wind_avg * 2.23694; // m/s to mph
+                        const windDir = getWindDirection(current.wind_direction);
+                        const pressureMb = current.sea_level_pressure; // Already in millibars (hPa)
+                        const dewPointF = calculateDewPoint(current.air_temperature, current.relative_humidity);
+
+                        temperatureEl.textContent = `${Math.round(tempF)}°F`;
+                        feelsLikeEl.textContent = `Feels like ${Math.round(feelsLikeF)}°F`;
+                        windEl.textContent = `${Math.round(windSpeed)} mph ${windDir}`;
+                        humidityEl.textContent = `${current.relative_humidity}%`;
+                        pressureEl.textContent = `${Math.round(pressureMb)} mb`;
+                        dewPointEl.textContent = `${Math.round(dewPointF)}°F`;
+                        
+                        if (current.timestamp) {
+                           const lastUpdated = new Date(current.timestamp * 1000);
+                           lastUpdatedEl.textContent = `Last updated: ${lastUpdated.toLocaleTimeString()}`;
+                        }
+
+                        weatherDataEl.classList.remove('hidden');
+                        loadingEl.classList.add('hidden');
+                    }
+
+                    // Display hourly forecast
+                    const hourlyForecast = data.forecast?.hourly;
+                    if (hourlyForecast && hourlyForecast.length > 0) {
+                        forecastMessageEl.textContent = 'Here is the hourly forecast:';
+                        forecastGridEl.innerHTML = '';
+                        hourlyForecast.slice(0, 6).forEach(forecast => { // Displaying the next 6 hours
+                            const time = new Date(forecast.time * 1000).toLocaleTimeString([], {hour: 'numeric'});
+                            const tempF = Math.round((forecast.air_temperature * 9 / 5) + 32);
+                            const icon = getWeatherIcon(forecast.conditions);
+                            const precipProb = Math.round(forecast.precip_prob || 0);
+
+                            const div = document.createElement('div');
+                            div.className = 'forecast-item';
+                            div.innerHTML = `
+                                <div class="font-semibold text-gray-400">${time}</div>
+                                <div class="weather-icon">${icon}</div>
+                                <div class="text-2xl font-bold text-gray-200">${tempF}°F</div>
+                            `;
+                            forecastGridEl.appendChild(div);
+                        });
+                        forecastGridEl.classList.remove('hidden');
+                    } else {
+                        forecastMessageEl.textContent = 'Hourly forecast is not available.';
+                        forecastGridEl.classList.add('hidden');
+                    }
+
+                } catch (error) {
+                    loadingEl.innerHTML = `<p class="text-red-400 mt-4">Failed to load weather data. Please check the API token or station ID. Error: ${error.message}</p>`;
+                    console.error("Error fetching weather data:", error);
                 }
+            };
 
-                // Extract data fields
-                const temperatureC = latestObservation.air_temperature;
-                const feelsLikeC = latestObservation.feels_like;
-                const humidity = latestObservation.relative_humidity;
-                const windSpeedMs = latestObservation.wind_avg;
-                const windDirection = latestObservation.wind_direction;
-                const precipValue = latestObservation.precip_accum_last_24h;
-                const seaLevelPressurehPa = latestObservation.sea_level_pressure;
-
-                // Perform conversions and data formatting
-                const temperatureF = cToF(temperatureC).toFixed(1);
-                const feelsLikeF = cToF(feelsLikeC).toFixed(1);
-                const windSpeedMph = msToMph(windSpeedMs).toFixed(1);
-                const cardinalDirection = getCardinalDirection(windDirection);
-                const precipAccum24h = (precipValue === null || isNaN(precipValue)) ? 0 : precipValue;
-                const rainfallInches = (precipAccum24h * 0.0393701).toFixed(2);
-                
-                // Update the dashboard with the new values
-                temperatureElement.textContent = `${temperatureF}°F`;
-                feelsLikeElement.textContent = `${feelsLikeF}°F`;
-                humidityElement.textContent = `${humidity}%`;
-                windSpeedElement.textContent = `${windSpeedMph} mph`;
-                windDirectionElement.textContent = `${cardinalDirection}`;
-                rainfallElement.textContent = `${rainfallInches} in`;
-                pressureElement.textContent = `${seaLevelPressurehPa} hPa`;
-
-            } catch (error) {
-                console.error("Failed to fetch weather data:", error);
-                // Display error message on the dashboard
-                dashboardElement.innerHTML = `
-                    <div class="text-center p-8 text-red-500">
-                        <h3 class="text-2xl font-bold">Error</h3>
-                        <p class="mt-2">Failed to load weather data. Please check the API token or station ID.</p>
-                        <p class="mt-1 text-sm">Details: ${error.message}</p>
-                    </div>
-                `;
-            } finally {
-                loadingElement.classList.add('hidden');
-                dashboardElement.classList.remove('hidden');
-            }
-        }
-
-        // Fetch the data as soon as the page loads
-        document.addEventListener('DOMContentLoaded', fetchWeatherData);
-        // Refresh the data every 5 minutes (300000 ms)
-        setInterval(fetchWeatherData, 300000);
+            fetchData();
+            // Refresh data every 5 minutes
+            setInterval(fetchData, 300000); 
+        });
     </script>
+
 </body>
 </html>
