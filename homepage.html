@@ -29,6 +29,45 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* Custom styles for the weather dashboard card */
+        .card {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2.5rem;
+        }
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #334155;
+        }
+        .data-item:last-child {
+            border-bottom: none;
+        }
+        .data-label {
+            font-weight: 600;
+            color: #94a3b8;
+        }
+        .data-value {
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .forecast-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            background-color: #334155;
+            text-align: center;
+        }
+        .weather-icon {
+            font-size: 2.5rem;
+            line-height: 1;
+        }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
@@ -41,40 +80,62 @@
         </header>
 
         <section id="current-conditions-section" class="section-container">
-            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-6 text-center">Current Conditions</h2>
-            <div id="weather-dashboard" class="w-full">
-                <div id="loading-conditions" class="text-center text-xl font-medium">Loading weather data...</div>
-                <div id="weather-data-container" class="hidden">
-                    <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
-                        <div class="bg-blue-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="temperature">-</div>
-                            <div class="text-sm md:text-base font-semibold text-gray-400">Temperature</div>
+            <!-- Main Weather Card -->
+            <div class="card text-center mb-8">
+                <h1 class="text-3xl sm:text-4xl font-bold mb-2">Ephrata, PA</h1>
+                <p class="text-lg sm:text-xl text-gray-400 mb-6" id="last-updated"></p>
+                
+                <div id="loading" class="text-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-gray-600 mx-auto"></div>
+                    <p class="mt-4 text-gray-400">Loading weather data...</p>
+                </div>
+
+                <div id="weather-data" class="hidden">
+                    <div class="text-5xl sm:text-6xl font-extrabold text-blue-400 mb-2" id="temperature">--°F</div>
+                    <div class="text-base sm:text-lg text-gray-400 mb-6" id="feels-like">Feels like --°F</div>
+                    
+                    <!-- Data grid stacks on mobile, becomes 2 columns on medium screens -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                        <div class="data-item">
+                            <span class="data-label">Wind</span>
+                            <span class="data-value" id="wind">-- mph</span>
                         </div>
-                        <div class="bg-purple-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div class="text-2xl sm:text-3xl md:text-4xl font-bold" id="feels-like">-</div>
-                            <div class="text-sm md:text-base font-semibold text-gray-400">Feels Like</div>
+                        <div class="data-item">
+                            <span class="data-label">Humidity</span>
+                            <span class="data-value" id="humidity">--%</span>
                         </div>
-                        <div class="bg-green-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div class="text-3xl md:text-4xl font-bold" id="humidity">-</div>
-                            <div class="text-sm md:text-base font-semibold text-gray-400">Humidity</div>
+                        <div class="data-item">
+                            <span class="data-label">Pressure</span>
+                            <span class="data-value" id="pressure">-- mb</span>
                         </div>
-                        <div class="bg-yellow-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div class="text-xl md:text-2xl font-bold" id="wind-speed">-</div>
-                            <div class="text-base md:text-lg font-semibold" id="wind-direction">-</div>
-                            <div class="text-sm md:text-base text-gray-400">Wind</div>
+                        <div class="data-item">
+                            <span class="data-label">Dew Point</span>
+                            <span class="data-value" id="dew-point">--°F</span>
                         </div>
-                        <div class="bg-teal-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div class="text-xl md:text-2xl font-bold" id="rainfall-total">-</div>
-                            <div class="text-sm md:text-base font-semibold text-gray-400">Rainfall (last 24h)</div>
-                        </div>
-                        <div class="bg-red-50/10 p-5 rounded-xl shadow-md flex flex-col items-center justify-center space-y-2">
-                            <div class="text-xl md:text-2xl font-bold" id="pressure">-</div>
-                            <div class="text-sm md:text-base font-semibold text-gray-400">Sea Level Pressure</div>
-                        </div>
-                    </main>
-                    <footer class="text-center text-xs text-gray-500 mt-6">
-                        <p>Data provided by WeatherFlow Tempest Station ID: 168579</p>
-                    </footer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hourly Forecast Card -->
+            <div class="card mb-8">
+                <h2 class="text-xl sm:text-2xl font-bold mb-4 text-center">Hourly Forecast</h2>
+                <div id="hourly-forecast-container">
+                    <p id="forecast-message" class="text-center text-gray-400">Checking for hourly forecast...</p>
+                    <!-- Forecast grid is 2 columns on mobile, 3 columns on larger screens -->
+                    <div id="forecast-grid" class="mt-4 hidden grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+                </div>
+            </div>
+            
+            <!-- Weather Alerts Card -->
+            <div class="card">
+                <h2 class="text-xl sm:text-2xl font-bold text-white mb-6 text-center">Weather Alerts</h2>
+                <div id="loading-alerts" class="text-center p-8">
+                    <div class="animate-pulse text-slate-400">
+                        <svg class="w-16 h-16 mx-auto text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 4m0 5c-.5 1.5-1 3-1.5 4.5"/></svg>
+                        <p class="mt-4 text-xl">Checking for alerts...</p>
+                    </div>
+                </div>
+                <div id="alerts-container" class="hidden space-y-6">
                 </div>
             </div>
         </section>
@@ -108,88 +169,202 @@
             </div>
         </section>
 
-        <section id="alerts-section" class="section-container">
-            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-6 text-center">Weather Alerts</h2>
-            <div id="loading-alerts" class="text-center p-8">
-                <div class="animate-pulse text-slate-400">
-                    <svg class="w-16 h-16 mx-auto text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 4m0 5c-.5 1.5-1 3-1.5 4.5"/></svg>
-                    <p class="mt-4 text-xl">Checking for alerts...</p>
-                </div>
-            </div>
-            <div id="alerts-container" class="hidden space-y-6">
-                </div>
-        </section>
-
         <footer class="text-center text-slate-500 text-sm mt-8 pb-4">
-            <p>2025 Ephrata Weather Hub.</p>
+            <p>&copy; 2025 Ephrata Weather Hub. All rights reserved.</p>
         </footer>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // --- Current Conditions Script (from currentconditions.html) ---
-        const API_TOKEN = "7924050f-deed-4373-9755-fb0c8c8668b9";
-        const STATION_ID = "168579";
-        const API_URL = `https://swd.weatherflow.com/swd/rest/observations/station/${STATION_ID}?token=${API_TOKEN}`;
+        // --- All Weather Data Scripts ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const STATION_ID = 168579;
+            const TOKEN = '7924050f-deed-4373-9755-fb0c8c8668b9';
+            const WEATHER_API_URL = `https://swd.weatherflow.com/swd/rest/better_forecast?station_id=${STATION_ID}&token=${TOKEN}`;
+            const NWS_API_URL = "https://api.weather.gov";
+            const ZONE_ID = "PAZ066";
 
-        const temperatureElement = document.getElementById('temperature');
-        const feelsLikeElement = document.getElementById('feels-like');
-        const humidityElement = document.getElementById('humidity');
-        const windSpeedElement = document.getElementById('wind-speed');
-        const windDirectionElement = document.getElementById('wind-direction');
-        const rainfallElement = document.getElementById('rainfall-total');
-        const pressureElement = document.getElementById('pressure');
-        const loadingConditionsElement = document.getElementById('loading-conditions');
-        const weatherDataContainer = document.getElementById('weather-data-container');
+            const weatherDataEl = document.getElementById('weather-data');
+            const loadingEl = document.getElementById('loading');
+            const lastUpdatedEl = document.getElementById('last-updated');
+            const temperatureEl = document.getElementById('temperature');
+            const feelsLikeEl = document.getElementById('feels-like');
+            const windEl = document.getElementById('wind');
+            const humidityEl = document.getElementById('humidity');
+            const pressureEl = document.getElementById('pressure');
+            const dewPointEl = document.getElementById('dew-point');
+            
+            const forecastMessageEl = document.getElementById('forecast-message');
+            const forecastGridEl = document.getElementById('forecast-grid');
 
-        function cToF(celsius) { return (celsius * 9 / 5) + 32; }
-        function msToMph(ms) { return ms * 2.23694; }
-        function getCardinalDirection(angle) {
-            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-            const index = Math.round(angle / 22.5) % 16;
-            return directions[index];
-        }
+            const alertsContainer = document.getElementById('alerts-container');
+            const loadingAlertsElement = document.getElementById('loading-alerts');
 
-        async function fetchWeatherData() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                const latestObservation = data.obs[0];
-                if (!latestObservation) throw new Error('No observation data available.');
+            // Function to calculate dew point in Fahrenheit
+            const calculateDewPoint = (tempC, rh) => {
+                const a = 17.27;
+                const b = 237.7;
+                const tempPart = (a * tempC) / (b + tempC);
+                const dewPointC = (b * (tempPart + Math.log(rh / 100))) / (a - (tempPart + Math.log(rh / 100)));
+                return (dewPointC * 9 / 5) + 32; // Convert to Fahrenheit
+            };
 
-                const temperatureC = latestObservation.air_temperature;
-                const feelsLikeC = latestObservation.feels_like;
-                const humidity = latestObservation.relative_humidity;
-                const windSpeedMs = latestObservation.wind_avg;
-                const windDirection = latestObservation.wind_direction;
-                const precipValue = latestObservation.precip_accum_last_24h;
-                const seaLevelPressurehPa = latestObservation.sea_level_pressure;
+            // Function to format wind direction
+            const getWindDirection = (degrees) => {
+                const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+                const index = Math.round((degrees % 360) / 22.5);
+                return directions[index % 16];
+            };
 
-                const temperatureF = cToF(temperatureC).toFixed(1);
-                const feelsLikeF = cToF(feelsLikeC).toFixed(1);
-                const windSpeedMph = msToMph(windSpeedMs).toFixed(1);
-                const cardinalDirection = getCardinalDirection(windDirection);
-                const precipAccum24h = (precipValue === null || isNaN(precipValue)) ? 0 : precipValue;
-                const rainfallInches = (precipAccum24h * 0.0393701).toFixed(2);
-                
-                temperatureElement.textContent = `${temperatureF}°F`;
-                feelsLikeElement.textContent = `${feelsLikeF}°F`;
-                humidityElement.textContent = `${humidity}%`;
-                windSpeedElement.textContent = `${windSpeedMph} mph`;
-                windDirectionElement.textContent = `${cardinalDirection}`;
-                rainfallElement.textContent = `${rainfallInches} in`;
-                pressureElement.textContent = `${seaLevelPressurehPa} hPa`;
-            } catch (error) {
-                console.error("Failed to fetch weather data:", error);
-                weatherDataContainer.innerHTML = `<div class="text-center p-4 text-red-500"><p>Failed to load weather data.</p></div>`;
-            } finally {
-                loadingConditionsElement.classList.add('hidden');
-                weatherDataContainer.classList.remove('hidden');
+            // Function to get a weather icon based on condition string
+            const getWeatherIcon = (condition) => {
+                condition = condition.toLowerCase();
+                if (condition.includes('thunderstorm')) {
+                    return '⛈️';
+                } else if (condition.includes('rain') || condition.includes('showers')) {
+                    return '🌧️';
+                } else if (condition.includes('cloudy')) {
+                    return '☁️';
+                } else if (condition.includes('clear')) {
+                    return '☀️';
+                } else if (condition.includes('snow')) {
+                    return '❄️';
+                } else if (condition.includes('fog')) {
+                    return '🌫️';
+                }
+                return '❓'; // Default icon for unknown conditions
+            };
+
+            // Fetch WeatherFlow data for current and hourly
+            const fetchWeatherData = async () => {
+                try {
+                    const response = await fetch(WEATHER_API_URL);
+                    const data = await response.json();
+
+                    if (data.status.status_code !== 0) {
+                        throw new Error(data.status.status_message);
+                    }
+
+                    // Extract and display current conditions
+                    const current = data.current_conditions;
+                    if (current) {
+                        const tempF = (current.air_temperature * 9 / 5) + 32;
+                        const feelsLikeF = (current.feels_like * 9 / 5) + 32;
+                        const windSpeed = current.wind_avg * 2.23694; // m/s to mph
+                        const windDir = getWindDirection(current.wind_direction);
+                        const pressureMb = current.sea_level_pressure; // Already in millibars (hPa)
+                        const dewPointF = calculateDewPoint(current.air_temperature, current.relative_humidity);
+
+                        temperatureEl.textContent = `${Math.round(tempF)}°F`;
+                        feelsLikeEl.textContent = `Feels like ${Math.round(feelsLikeF)}°F`;
+                        windEl.textContent = `${Math.round(windSpeed)} mph ${windDir}`;
+                        humidityEl.textContent = `${current.relative_humidity}%`;
+                        pressureEl.textContent = `${Math.round(pressureMb)} mb`;
+                        dewPointEl.textContent = `${Math.round(dewPointF)}°F`;
+                        
+                        if (current.timestamp) {
+                           const lastUpdated = new Date(current.timestamp * 1000);
+                           lastUpdatedEl.textContent = `Last updated: ${lastUpdated.toLocaleTimeString()}`;
+                        }
+
+                        weatherDataEl.classList.remove('hidden');
+                        loadingEl.classList.add('hidden');
+                    }
+
+                    // Display hourly forecast
+                    const hourlyForecast = data.forecast?.hourly;
+                    if (hourlyForecast && hourlyForecast.length > 0) {
+                        forecastMessageEl.textContent = 'Here is the hourly forecast:';
+                        forecastGridEl.innerHTML = '';
+                        hourlyForecast.slice(0, 6).forEach(forecast => { // Displaying the next 6 hours
+                            const time = new Date(forecast.time * 1000).toLocaleTimeString([], {hour: 'numeric'});
+                            const tempF = Math.round((forecast.air_temperature * 9 / 5) + 32);
+                            const icon = getWeatherIcon(forecast.conditions);
+                            const precipProb = Math.round(forecast.precip_prob || 0);
+
+                            const div = document.createElement('div');
+                            div.className = 'forecast-item';
+                            div.innerHTML = `
+                                <div class="font-semibold text-gray-400">${time}</div>
+                                <div class="weather-icon">${icon}</div>
+                                <div class="text-2xl font-bold text-gray-200">${tempF}°F</div>
+                            `;
+                            forecastGridEl.appendChild(div);
+                        });
+                        forecastGridEl.classList.remove('hidden');
+                    } else {
+                        forecastMessageEl.textContent = 'Hourly forecast is not available.';
+                        forecastGridEl.classList.add('hidden');
+                    }
+
+                } catch (error) {
+                    loadingEl.innerHTML = `<p class="text-red-400 mt-4">Failed to load weather data. Please check the API token or station ID. Error: ${error.message}</p>`;
+                    console.error("Error fetching weather data:", error);
+                }
+            };
+            
+            // Fetch NWS alerts
+            function getSeverityIcon(severity) {
+                switch(severity.toLowerCase()) {
+                    case 'minor': return `<svg class="w-6 h-6 flex-shrink-0 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+                    case 'moderate': return `<svg class="w-6 h-6 flex-shrink-0 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
+                    case 'severe': case 'extreme': return `<svg class="w-6 h-6 flex-shrink-0 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                    default: return `<svg class="w-6 h-6 flex-shrink-0 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                }
             }
-        }
-        document.addEventListener('DOMContentLoaded', fetchWeatherData);
-        setInterval(fetchWeatherData, 300000);
+            function getSeverityColor(severity) {
+                switch(severity.toLowerCase()) {
+                    case 'minor': return 'bg-yellow-950 border-yellow-700 text-yellow-200';
+                    case 'moderate': return 'bg-orange-950 border-orange-700 text-orange-200';
+                    case 'severe': return 'bg-red-950 border-red-700 text-red-200';
+                    case 'extreme': return 'bg-red-700 border-red-800 text-white';
+                    default: return 'bg-blue-950 border-blue-700 text-blue-200';
+                }
+            }
+            async function fetchWeatherAlerts() {
+                loadingAlertsElement.classList.remove('hidden');
+                alertsContainer.classList.add('hidden');
+                alertsContainer.innerHTML = '';
+                try {
+                    const response = await fetch(`${NWS_API_URL}/alerts/active?zone=${ZONE_ID}`, { headers: { 'User-Agent': 'EphrataWeatherHub, (myemail@example.com)' } });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+                    if (data.features.length === 0) {
+                        alertsContainer.innerHTML = `<div class="text-center p-8 bg-slate-800 rounded-2xl shadow-lg border border-slate-700 fade-in"><p class="text-lg font-medium text-slate-400">No active weather alerts for Ephrata, PA.</p></div>`;
+                    } else {
+                        data.features.forEach(alert => {
+                            const props = alert.properties;
+                            const severityClass = getSeverityColor(props.severity);
+                            const severityIcon = getSeverityIcon(props.severity);
+                            const alertCard = `<div class="flex items-start gap-4 p-5 rounded-2xl shadow-lg border ${severityClass} fade-in">
+                                    <div class="flex-shrink-0 mt-1">${severityIcon}</div>
+                                    <div><h3 class="text-lg font-bold">${props.event}</h3>
+                                        <p class="text-sm font-semibold opacity-75 mt-1">Severity: ${props.severity}</p>
+                                        <p class="text-sm mt-2">${props.headline}</p>
+                                        <a href="${props.url}" target="_blank" class="mt-3 inline-block font-semibold hover:underline text-sm text-cyan-400">Read more</a>
+                                    </div>
+                                </div>`;
+                            alertsContainer.innerHTML += alertCard;
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch weather alerts:", error);
+                    alertsContainer.innerHTML = `<div class="text-center p-8 bg-slate-800 rounded-2xl shadow-lg border border-slate-700 fade-in"><h3 class="text-xl font-bold text-red-500">Error</h3><p class="mt-2 text-slate-400">Failed to load weather alerts.</p></div>`;
+                } finally {
+                    loadingAlertsElement.classList.add('hidden');
+                    alertsContainer.classList.remove('hidden');
+                }
+            }
+
+            // Run both fetches
+            fetchWeatherData();
+            fetchWeatherAlerts();
+            // Refresh data every 5 minutes
+            setInterval(() => {
+                fetchWeatherData();
+                fetchWeatherAlerts();
+            }, 300000); 
+        });
 
         // --- National Composite Radar Script (from national_composite_radar_viewer.html) ---
         const map = L.map('map', { zoomControl: true, minZoom: 2, worldCopyJump: true });
@@ -253,67 +428,6 @@
             }
         }
         document.addEventListener('DOMContentLoaded', loadFrames);
-
-        // --- Weather Alerts Script (from ephrataalertschecker.html) ---
-        const NWS_API_URL = "https://api.weather.gov";
-        const ZONE_ID = "PAZ066";
-        const alertsContainer = document.getElementById('alerts-container');
-        const loadingAlertsElement = document.getElementById('loading-alerts');
-
-        function getSeverityIcon(severity) {
-            switch(severity.toLowerCase()) {
-                case 'minor': return `<svg class="w-6 h-6 flex-shrink-0 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
-                case 'moderate': return `<svg class="w-6 h-6 flex-shrink-0 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
-                case 'severe': case 'extreme': return `<svg class="w-6 h-6 flex-shrink-0 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
-                default: return `<svg class="w-6 h-6 flex-shrink-0 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
-            }
-        }
-        function getSeverityColor(severity) {
-            switch(severity.toLowerCase()) {
-                case 'minor': return 'bg-yellow-950 border-yellow-700 text-yellow-200';
-                case 'moderate': return 'bg-orange-950 border-orange-700 text-orange-200';
-                case 'severe': return 'bg-red-950 border-red-700 text-red-200';
-                case 'extreme': return 'bg-red-700 border-red-800 text-white';
-                default: return 'bg-blue-950 border-blue-700 text-blue-200';
-            }
-        }
-        async function fetchWeatherAlerts() {
-            loadingAlertsElement.classList.remove('hidden');
-            alertsContainer.classList.add('hidden');
-            alertsContainer.innerHTML = '';
-            try {
-                const response = await fetch(`${NWS_API_URL}/alerts/active?zone=${ZONE_ID}`, { headers: { 'User-Agent': 'EphrataWeatherHub, (myemail@example.com)' } });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                if (data.features.length === 0) {
-                    alertsContainer.innerHTML = `<div class="text-center p-8 bg-slate-800 rounded-2xl shadow-lg border border-slate-700 fade-in"><p class="text-lg font-medium text-slate-400">No active weather alerts for Ephrata, PA.</p></div>`;
-                } else {
-                    data.features.forEach(alert => {
-                        const props = alert.properties;
-                        const severityClass = getSeverityColor(props.severity);
-                        const severityIcon = getSeverityIcon(props.severity);
-                        const alertCard = `<div class="flex items-start gap-4 p-5 rounded-2xl shadow-lg border ${severityClass} fade-in">
-                                <div class="flex-shrink-0 mt-1">${severityIcon}</div>
-                                <div><h3 class="text-lg font-bold">${props.event}</h3>
-                                    <p class="text-sm font-semibold opacity-75 mt-1">Severity: ${props.severity}</p>
-                                    <p class="text-sm mt-2">${props.headline}</p>
-                                    <a href="${props.url}" target="_blank" class="mt-3 inline-block font-semibold hover:underline text-sm text-cyan-400">Read more</a>
-                                </div>
-                            </div>`;
-                        alertsContainer.innerHTML += alertCard;
-                    });
-                }
-            } catch (error) {
-                console.error("Failed to fetch weather alerts:", error);
-                alertsContainer.innerHTML = `<div class="text-center p-8 bg-slate-800 rounded-2xl shadow-lg border border-slate-700 fade-in"><h3 class="text-xl font-bold text-red-500">Error</h3><p class="mt-2 text-slate-400">Failed to load weather alerts.</p></div>`;
-            } finally {
-                loadingAlertsElement.classList.add('hidden');
-                alertsContainer.classList.remove('hidden');
-            }
-        }
-        document.addEventListener('DOMContentLoaded', fetchWeatherAlerts);
-        setInterval(fetchWeatherAlerts, 300000);
     </script>
 </body>
-
 </html>
