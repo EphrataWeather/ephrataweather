@@ -1,0 +1,353 @@
+Of course. Here is the updated code with the map removed and the damage tags added.
+
+This new version focuses entirely on the list of alerts. It analyzes the text of each **Tornado** and **Severe Thunderstorm Warning** to determine its source ("Radar Indicated" or "Observed") and adds special tags for high-threat situations like a "Particularly Dangerous Situation" (PDS).
+
+### **Key Changes**
+
+1.  **Single-Column Layout:** The map has been removed, and the alerts list is now centered and takes up the main view.
+2.  **Damage Tags:** A new colored tag appears at the top right of relevant alert cards.
+3.  **Smarter Parsing:** The JavaScript now reads the full description of certain warnings to find keywords like "radar indicated," "observed," "confirmed," "particularly dangerous situation," and "considerable damage" to generate the appropriate tag.
+
+Copy and paste the code into an `.html` file and open it in your browser to see the live, updated dashboard.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>National Alert Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1a1a1d;
+            --text-color: #f2f2f2;
+            --card-bg: #2c2c30;
+            --border-color: #404044;
+            --accent-color: #4a90e2;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+
+            --severity-extreme: #d93025;
+            --severity-severe: #f29900;
+            --severity-moderate: #fbbc04;
+            --severity-minor: #8ab4f8;
+            --severity-unknown: #9aa0a6;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header Styling */
+        header {
+            background-color: var(--card-bg);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px var(--shadow-color);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        
+        header h1 span {
+            color: var(--accent-color);
+        }
+
+        /* Main Content Layout */
+        main {
+            padding: 1rem;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto; /* Center the content */
+            box-sizing: border-box;
+        }
+
+        .alerts-list-container h2 {
+            margin-top: 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Alert Card Styling */
+        .alert-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            padding: 1rem 1.5rem;
+            border-left: 5px solid; /* Severity color goes here */
+            box-shadow: 0 2px 5px var(--shadow-color);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .alert-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .alert-card.extreme { border-color: var(--severity-extreme); }
+        .alert-card.severe { border-color: var(--severity-severe); }
+        .alert-card.moderate { border-color: var(--severity-moderate); }
+        .alert-card.minor { border-color: var(--severity-minor); }
+        .alert-card.unknown { border-color: var(--severity-unknown); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        /* Damage Tag Styling */
+        .damage-tag {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            margin-left: 1rem;
+        }
+
+        .alert-card .location {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 0.5rem;
+        }
+
+        .alert-card .expires {
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        .status-message {
+            color: #999;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Modal Styling (same as before) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px var(--shadow-color);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 2rem;
+            cursor: pointer;
+        }
+
+        .modal-body .detail-item { margin-bottom: 1rem; }
+        .modal-body .detail-item strong { display: block; color: var(--accent-color); margin-bottom: 0.25rem; }
+        .modal-body .full-text { background-color: var(--bg-color); border-radius: 6px; padding: 1rem; white-space: pre-wrap; font-family: monospace; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>National <span>Alert</span> Dashboard</h1>
+        </header>
+
+        <main>
+            <div id="alerts-list" class="alerts-list-container">
+                <h2>Active Alerts (Sorted by Severity)</h2>
+                <div class="status-message">Fetching live alerts...</div>
+            </div>
+        </main>
+    </div>
+
+    <div id="alertModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Alert Title</h2>
+                <button id="modalClose" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-item"><strong>Location:</strong> <span id="modalLocation"></span></div>
+                <div class="detail-item"><strong>Severity:</strong> <span id="modalSeverity"></span></div>
+                <div class="detail-item"><strong>Expires:</strong> <span id="modalExpires"></span></div>
+                <div class="detail-item"><strong>Full Alert Text:</strong><p id="modalFullText" class="full-text"></p></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const alertsListContainer = document.getElementById('alerts-list');
+            const modal = document.getElementById('alertModal');
+            const modalCloseButton = document.getElementById('modalClose');
+
+            const severityOrder = { "Extreme": 1, "Severe": 2, "Moderate": 3, "Minor": 4, "Unknown": 5 };
+            
+            async function fetchAlerts() {
+                const apiUrl = 'https://api.weather.gov/alerts/active';
+                try {
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+                    const data = await response.json();
+                    displayAlerts(data.features);
+                } catch (error) {
+                    console.error('Failed to fetch alerts:', error);
+                    alertsListContainer.innerHTML = '<h2>Active Alerts</h2><div class="status-message">Failed to load alerts. Please try again later.</div>';
+                }
+            }
+            
+            function displayAlerts(alerts) {
+                alertsListContainer.innerHTML = '<h2>Active Alerts (Sorted by Severity)</h2>';
+
+                if (alerts.length === 0) {
+                    alertsListContainer.innerHTML += '<div class="status-message">No active alerts nationwide.</div>';
+                    return;
+                }
+
+                alerts.sort((a, b) => {
+                    const sevA = severityOrder[a.properties.severity] || 99;
+                    const sevB = severityOrder[b.properties.severity] || 99;
+                    return sevA !== sevB ? sevA - sevB : new Date(b.properties.sent) - new Date(a.properties.sent);
+                });
+
+                alerts.forEach(alert => {
+                    const props = alert.properties;
+                    const tags = generateDamageTags(props);
+                    const card = document.createElement('div');
+                    card.className = `alert-card ${getSeverityClass(props.severity)}`;
+                    
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <h3>${props.event}</h3>
+                            ${tags ? `<span class="damage-tag">${tags}</span>` : ''}
+                        </div>
+                        <div class="location">${props.areaDesc}</div>
+                        <div class="expires">Expires: ${formatDate(props.expires)}</div>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        showAlert(props.event, props.areaDesc, props.severity, formatDate(props.expires), props.description);
+                    });
+                    alertsListContainer.appendChild(card);
+                });
+            }
+
+            /**
+             * Analyzes alert text to generate relevant tags.
+             * @param {object} props - The properties object from an NWS alert feature.
+             * @returns {string} A string containing the generated tag, or an empty string.
+             */
+            function generateDamageTags(props) {
+                const event = props.event || '';
+                if (!['Tornado Warning', 'Severe Thunderstorm Warning'].includes(event)) {
+                    return ''; // Only process these warning types
+                }
+                
+                const text = (`${props.headline} ${props.description}`).toLowerCase();
+                const isObserved = text.includes('observed') || text.includes('confirmed');
+                const sourceTag = isObserved ? 'Observed' : 'Radar Indicated';
+
+                if (event === 'Tornado Warning') {
+                    if (text.includes('particularly dangerous situation')) return `PDS / ${sourceTag}`;
+                    if (text.includes('considerable damage')) return `Considerable / ${sourceTag}`;
+                }
+                
+                return sourceTag;
+            }
+
+            function getSeverityClass(s) { return s ? s.toLowerCase() : 'unknown'; }
+            
+            function formatDate(iso) {
+                if (!iso) return 'N/A';
+                return new Date(iso).toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                });
+            }
+
+            function showAlert(title, loc, sev, exp, text) {
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalLocation').textContent = loc;
+                document.getElementById('modalSeverity').textContent = sev || 'Unknown';
+                document.getElementById('modalExpires').textContent = exp;
+                document.getElementById('modalFullText').textContent = text || 'No description.';
+                modal.classList.add('active');
+            }
+
+            function closeModal() { modal.classList.remove('active'); }
+            modalCloseButton.addEventListener('click', closeModal);
+            modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+
+            fetchAlerts();
+        });
+    </script>
+
+</body>
+</html>
+```
