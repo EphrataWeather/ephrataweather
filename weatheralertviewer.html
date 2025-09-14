@@ -1,16 +1,3 @@
-Of course. Here is the updated code with the map removed and the damage tags added.
-
-This new version focuses entirely on the list of alerts. It analyzes the text of each **Tornado** and **Severe Thunderstorm Warning** to determine its source ("Radar Indicated" or "Observed") and adds special tags for high-threat situations like a "Particularly Dangerous Situation" (PDS).
-
-### **Key Changes**
-
-1.  **Single-Column Layout:** The map has been removed, and the alerts list is now centered and takes up the main view.
-2.  **Damage Tags:** A new colored tag appears at the top right of relevant alert cards.
-3.  **Smarter Parsing:** The JavaScript now reads the full description of certain warnings to find keywords like "radar indicated," "observed," "confirmed," "particularly dangerous situation," and "considerable damage" to generate the appropriate tag.
-
-Copy and paste the code into an `.html` file and open it in your browser to see the live, updated dashboard.
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,12 +15,6 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             --border-color: #404044;
             --accent-color: #4a90e2;
             --shadow-color: rgba(0, 0, 0, 0.4);
-
-            --severity-extreme: #d93025;
-            --severity-severe: #f29900;
-            --severity-moderate: #fbbc04;
-            --severity-minor: #8ab4f8;
-            --severity-unknown: #9aa0a6;
         }
 
         body {
@@ -50,7 +31,6 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             min-height: 100vh;
         }
 
-        /* Header Styling */
         header {
             background-color: var(--card-bg);
             padding: 1rem 1.5rem;
@@ -66,16 +46,13 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             text-align: center;
         }
         
-        header h1 span {
-            color: var(--accent-color);
-        }
+        header h1 span { color: var(--accent-color); }
 
-        /* Main Content Layout */
         main {
             padding: 1rem;
             width: 100%;
             max-width: 900px;
-            margin: 0 auto; /* Center the content */
+            margin: 0 auto;
             box-sizing: border-box;
         }
 
@@ -85,13 +62,12 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             border-bottom: 1px solid var(--border-color);
         }
 
-        /* Alert Card Styling */
         .alert-card {
             background-color: var(--card-bg);
             border-radius: 8px;
             margin-bottom: 1rem;
             padding: 1rem 1.5rem;
-            border-left: 5px solid; /* Severity color goes here */
+            border-left: 5px solid var(--border-color); /* Default border color */
             box-shadow: 0 2px 5px var(--shadow-color);
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -102,12 +78,22 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             box-shadow: 0 4px 12px var(--shadow-color);
         }
 
-        .alert-card.extreme { border-color: var(--severity-extreme); }
-        .alert-card.severe { border-color: var(--severity-severe); }
-        .alert-card.moderate { border-color: var(--severity-moderate); }
-        .alert-card.minor { border-color: var(--severity-minor); }
-        .alert-card.unknown { border-color: var(--severity-unknown); }
-
+        /* NWS Official Alert Colors */
+        .alert-card.tornado-warning { border-left-color: #FF0000; }
+        .alert-card.severe-thunderstorm-warning { border-left-color: #FFA500; }
+        .alert-card.flash-flood-warning { border-left-color: #00FF00; }
+        .alert-card.flood-warning { border-left-color: #228B22; }
+        .alert-card.tornado-watch { border-left-color: #FFFF00; }
+        .alert-card.severe-thunderstorm-watch { border-left-color: #DB7093; }
+        .alert-card.winter-storm-warning { border-left-color: #FF69B4; }
+        .alert-card.blizzard-warning { border-left-color: #FF4500; }
+        .alert-card.special-weather-statement { border-left-color: #FFE4B5; }
+        .alert-card.heat-advisory { border-left-color: #FF7F50; }
+        .alert-card.air-quality-alert { border-left-color: #808080; }
+        .alert-card.high-wind-warning { border-left-color: #DAA520; }
+        .alert-card.dense-fog-advisory { border-left-color: #708090; }
+        .alert-card.fire-weather-watch, .alert-card.red-flag-warning { border-left-color: #FF1493; }
+        
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -115,13 +101,8 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             margin-bottom: 0.25rem;
         }
 
-        .card-header h3 {
-            margin: 0;
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
+        .card-header h3 { margin: 0; font-size: 1.1rem; font-weight: 500; }
         
-        /* Damage Tag Styling */
         .damage-tag {
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -134,79 +115,29 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             margin-left: 1rem;
         }
 
-        .alert-card .location {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-bottom: 0.5rem;
-        }
+        .alert-card .location { font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem; }
+        .alert-card .expires { font-size: 0.8rem; opacity: 0.6; }
+        .status-message { color: #999; text-align: center; padding: 2rem; }
 
-        .alert-card .expires {
-            font-size: 0.8rem;
-            opacity: 0.6;
-        }
-
-        .status-message {
-            color: #999;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        /* Modal Styling (same as before) */
         .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); display: flex;
+            align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
+        .modal-overlay.active { opacity: 1; visibility: visible; }
         .modal-content {
-            background-color: var(--card-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 5px 20px var(--shadow-color);
-            transform: scale(0.95);
+            background-color: var(--card-bg); padding: 2rem; border-radius: 12px;
+            width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 5px 20px var(--shadow-color); transform: scale(0.95);
             transition: transform 0.3s ease;
         }
-        
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
-        }
-
+        .modal-overlay.active .modal-content { transform: scale(1); }
         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-            margin-bottom: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem;
         }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 2rem;
-            cursor: pointer;
-        }
-
+        .modal-close { background: none; border: none; color: var(--text-color); font-size: 2rem; cursor: pointer; }
         .modal-body .detail-item { margin-bottom: 1rem; }
         .modal-body .detail-item strong { display: block; color: var(--accent-color); margin-bottom: 0.25rem; }
         .modal-body .full-text { background-color: var(--bg-color); border-radius: 6px; padding: 1rem; white-space: pre-wrap; font-family: monospace; line-height: 1.5; }
@@ -215,10 +146,7 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
 <body>
 
     <div class="container">
-        <header>
-            <h1>National <span>Alert</span> Dashboard</h1>
-        </header>
-
+        <header><h1>National <span>Alert</span> Dashboard</h1></header>
         <main>
             <div id="alerts-list" class="alerts-list-container">
                 <h2>Active Alerts (Sorted by Severity)</h2>
@@ -247,13 +175,11 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             const alertsListContainer = document.getElementById('alerts-list');
             const modal = document.getElementById('alertModal');
             const modalCloseButton = document.getElementById('modalClose');
-
             const severityOrder = { "Extreme": 1, "Severe": 2, "Moderate": 3, "Minor": 4, "Unknown": 5 };
             
             async function fetchAlerts() {
-                const apiUrl = 'https://api.weather.gov/alerts/active';
                 try {
-                    const response = await fetch(apiUrl);
+                    const response = await fetch('https://api.weather.gov/alerts/active');
                     if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
                     const data = await response.json();
                     displayAlerts(data.features);
@@ -265,12 +191,10 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             
             function displayAlerts(alerts) {
                 alertsListContainer.innerHTML = '<h2>Active Alerts (Sorted by Severity)</h2>';
-
                 if (alerts.length === 0) {
                     alertsListContainer.innerHTML += '<div class="status-message">No active alerts nationwide.</div>';
                     return;
                 }
-
                 alerts.sort((a, b) => {
                     const sevA = severityOrder[a.properties.severity] || 99;
                     const sevB = severityOrder[b.properties.severity] || 99;
@@ -281,7 +205,8 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
                     const props = alert.properties;
                     const tags = generateDamageTags(props);
                     const card = document.createElement('div');
-                    card.className = `alert-card ${getSeverityClass(props.severity)}`;
+                    // Use the new function to get a class based on the event name for coloring
+                    card.className = `alert-card ${getEventClass(props.event)}`;
                     
                     card.innerHTML = `
                         <div class="card-header">
@@ -291,24 +216,24 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
                         <div class="location">${props.areaDesc}</div>
                         <div class="expires">Expires: ${formatDate(props.expires)}</div>
                     `;
-
-                    card.addEventListener('click', () => {
-                        showAlert(props.event, props.areaDesc, props.severity, formatDate(props.expires), props.description);
-                    });
+                    card.addEventListener('click', () => showAlert(props));
                     alertsListContainer.appendChild(card);
                 });
             }
 
             /**
-             * Analyzes alert text to generate relevant tags.
-             * @param {object} props - The properties object from an NWS alert feature.
-             * @returns {string} A string containing the generated tag, or an empty string.
+             * Converts an event name like "Tornado Warning" into a CSS-friendly class "tornado-warning".
+             * @param {string} eventName - The name of the alert event.
+             * @returns {string} The CSS class name.
              */
+            function getEventClass(eventName) {
+                if (!eventName) return '';
+                return eventName.toLowerCase().replace(/ /g, '-');
+            }
+
             function generateDamageTags(props) {
                 const event = props.event || '';
-                if (!['Tornado Warning', 'Severe Thunderstorm Warning'].includes(event)) {
-                    return ''; // Only process these warning types
-                }
+                if (!['Tornado Warning', 'Severe Thunderstorm Warning'].includes(event)) return '';
                 
                 const text = (`${props.headline} ${props.description}`).toLowerCase();
                 const isObserved = text.includes('observed') || text.includes('confirmed');
@@ -318,11 +243,8 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
                     if (text.includes('particularly dangerous situation')) return `PDS / ${sourceTag}`;
                     if (text.includes('considerable damage')) return `Considerable / ${sourceTag}`;
                 }
-                
                 return sourceTag;
             }
-
-            function getSeverityClass(s) { return s ? s.toLowerCase() : 'unknown'; }
             
             function formatDate(iso) {
                 if (!iso) return 'N/A';
@@ -331,12 +253,12 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
                 });
             }
 
-            function showAlert(title, loc, sev, exp, text) {
-                document.getElementById('modalTitle').textContent = title;
-                document.getElementById('modalLocation').textContent = loc;
-                document.getElementById('modalSeverity').textContent = sev || 'Unknown';
-                document.getElementById('modalExpires').textContent = exp;
-                document.getElementById('modalFullText').textContent = text || 'No description.';
+            function showAlert(props) {
+                document.getElementById('modalTitle').textContent = props.event;
+                document.getElementById('modalLocation').textContent = props.areaDesc;
+                document.getElementById('modalSeverity').textContent = props.severity || 'Unknown';
+                document.getElementById('modalExpires').textContent = formatDate(props.expires);
+                document.getElementById('modalFullText').textContent = props.description || 'No description.';
                 modal.classList.add('active');
             }
 
@@ -347,7 +269,5 @@ Copy and paste the code into an `.html` file and open it in your browser to see 
             fetchAlerts();
         });
     </script>
-
 </body>
 </html>
-```
